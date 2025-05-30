@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Controle de Bolsas de Sangue</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f7f7f7;
+      color: #333;
+      padding: 20px;
+      margin: 0;
+    }
+    h1 {
+      text-align: center;
+      color: #b30000;
+      margin-bottom: 20px;
+    }
+    .container {
+      display: flex;
+      gap: 20px;
+    }
+    .left, .right {
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      flex: 1;
+    }
+    form input, form select, form button {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background-color: #b30000;
+      color: white;
+      border: none;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background-color: #800000;
+    }
+    .card {
+      background: #fafafa;
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .mensagem {
+      display: none;
+      padding: 10px;
+      background: #28a745;
+      color: white;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      text-align: center;
+    }
+    .filtros select {
+      width: 100%;
+      margin-bottom: 10px;
+      padding: 10px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    .botao-acao {
+      margin-left: 5px;
+      background: #b30000;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .botao-acao:hover {
+      background: #800000;
+    }
+    @media (max-width: 800px) {
+      .container {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Controle de Bolsas de Sangue</h1>
+
+  <div class="mensagem" id="mensagem"></div>
+
+  <div class="container">
+    <div class="left">
+   
+
+      <h2>Cadastrar Bolsa</h2>
+      <form id="formBolsa">
+        <input type="text" id="idBolsa" placeholder="Doador" required>
+        <select id="especieBolsa" required>
+          <option value="" disabled selected>Espécie</option>
+          <option value="Canino">Canino</option>
+          <option value="Felino">Felino</option>
+        </select>
+        <input type="date" id="validadeBolsa" required>
+        <select id="unidadeBolsa" required>
+          <option value="" disabled selected>Unidade</option>
+          <option value="Braz Leme">Braz Leme</option>
+          <option value="Butantã">Butantã</option>
+          <option value="Campo Belo">Campo Belo</option>
+          <option value="HVET">HVET</option>
+          <option value="Jabaquara">Jabaquara</option>
+          <option value="Mooca">Mooca</option>
+          <option value="Morumbi">Morumbi</option>
+          <option value="Pompéia">Pompéia</option>
+          <option value="Rebouças">Rebouças</option>
+          <option value="Santana">Santana</option>
+          <option value="Sena Madureira">Sena Madureira</option>
+          <option value="São Caetano">São Caetano</option>
+          <option value="Vila Leopoldina">Vila Leopoldina</option>
+          <option value="Whashington Luis">Whashington Luis</option>
+          <option value="Laboratório">Laboratório</option>
+        </select>
+        <button type="submit">Lançar Bolsa</button>
+      </form>
+
+      <div class="filtros">
+        <h3>Filtros:</h3>
+        <select id="filtroUnidade">
+          <option value="">Todas as Unidades</option>
+        </select>
+        <select id="filtroEspecie">
+          <option value="">Todas as Espécies</option>
+          <option value="Canino">Canino</option>
+          <option value="Felino">Felino</option>
+        </select>
+      </div>
+
+      <button id="exportarCSV">Exportar CSV</button>
+      <button onclick="resetarDados()">Resetar Dados</button>
+      </div>
+
+    <div class="right">
+      <h2>Bolsas Circulantes</h2>
+      <div id="listaBolsasDisponiveis"></div>
+
+      <h2>Bolsas Próximas do Vencimento (6 dias)</h2>
+      <div id="listaBolsasVencimento"></div>
+
+    </div>
+  </div>
+
+  <script>
+    let bolsasDeSangue = JSON.parse(localStorage.getItem('bolsasDeSangue')) || [];
+
+    const form = document.getElementById('formBolsa');
+    const listaDisponiveis = document.getElementById('listaBolsasDisponiveis');
+    const listaVencimento = document.getElementById('listaBolsasVencimento');
+    const btnExportar = document.getElementById('exportarCSV');
+    const filtroUnidade = document.getElementById('filtroUnidade');
+    const filtroEspecie = document.getElementById('filtroEspecie');
+    const mensagem = document.getElementById('mensagem');
+
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const id = document.getElementById('idBolsa').value.trim();
+      const especie = document.getElementById('especieBolsa').value;
+      const validade = document.getElementById('validadeBolsa').value;
+      const unidade = document.getElementById('unidadeBolsa').value.trim();
+
+      const bolsa = { id, especie, validade, unidade, status: 'Disponível' };
+      bolsasDeSangue.push(bolsa);
+
+      salvarDados();
+      atualizarFiltros();
+      atualizarListas();
+      mostrarMensagem('Bolsa cadastrada com sucesso!');
+
+      form.reset();
+    });
+
+    function atualizarFiltros() {
+      const unidades = [...new Set(bolsasDeSangue.map(b => b.unidade))];
+      filtroUnidade.innerHTML = '<option value="">Todas as Unidades</option>';
+      unidades.forEach(u => {
+        const opt = document.createElement('option');
+        opt.value = u;
+        opt.textContent = u;
+        filtroUnidade.appendChild(opt);
+      });
+    }
+
+    filtroUnidade.addEventListener('change', atualizarListas);
+    filtroEspecie.addEventListener('change', atualizarListas);
+
+    function atualizarListas() {
+      listaDisponiveis.innerHTML = '';
+      listaVencimento.innerHTML = '';
+
+      const hoje = new Date();
+
+      const unidadeSelecionada = filtroUnidade.value;
+      const especieSelecionada = filtroEspecie.value;
+
+      const bolsasOrdenadas = bolsasDeSangue
+        .filter(b => b.status === 'Disponível')
+        .sort((a, b) => new Date(a.validade) - new Date(b.validade));
+
+      bolsasOrdenadas.forEach(bolsa => {
+        const validadeData = new Date(bolsa.validade);
+        const diasParaVencer = Math.ceil((validadeData - hoje) / (1000 * 60 * 60 * 24));
+
+        const passaFiltroUnidade = !unidadeSelecionada || bolsa.unidade === unidadeSelecionada;
+        const passaFiltroEspecie = !especieSelecionada || bolsa.especie === especieSelecionada;
+
+        if (passaFiltroUnidade && passaFiltroEspecie) {
+          const div = criarCard(bolsa);
+          listaDisponiveis.appendChild(div);
+        }
+
+        if (diasParaVencer <= 6 && diasParaVencer >= 0) {
+  const divVenc = criarCard(bolsa, diasParaVencer);
+  listaVencimento.appendChild(divVenc);
+}
+
+
+      });
+    }
+
+   function criarCard(bolsa, diasParaVencer = null) {
+  const div = document.createElement('div');
+  div.className = 'card';
+
+  let texto = `${bolsa.id} - ${bolsa.especie} - ${bolsa.validade} - ${bolsa.unidade}`;
+  if (diasParaVencer !== null) {
+    texto += ` (em ${diasParaVencer} dias)`;
+  }
+
+  div.innerHTML = `<span>${texto}</span>`;
+
+  const btnUsar = document.createElement('button');
+  btnUsar.textContent = 'Usar';
+  btnUsar.className = 'botao-acao';
+  btnUsar.addEventListener('click', function() {
+    const confirmar = confirm(`Tem certeza que deseja marcar a bolsa ${bolsa.id} como utilizada?`);
+    if (confirmar) {
+      bolsa.status = 'Utilizada';
+      salvarDados();
+      atualizarListas();
+      mostrarMensagem('Bolsa marcada como utilizada!');
+    }
+  });
+
+  const btnTrocar = document.createElement('button');
+  btnTrocar.textContent = 'Trocar';
+  btnTrocar.className = 'botao-acao';
+  btnTrocar.addEventListener('click', function() {
+    const confirmar = confirm(`Tem certeza que deseja realizar a troca da bolsa ${bolsa.id}?`);
+    if (confirmar) {
+      bolsa.status = 'Trocada';
+      salvarDados();
+      atualizarListas();
+      mostrarMensagem('Bolsa marcada como trocada!');
+    }
+  });
+
+  const btnEditar = document.createElement('button');
+  btnEditar.textContent = 'Editar';
+  btnEditar.className = 'botao-acao';
+  btnEditar.addEventListener('click', function() {
+    const novaEspecie = prompt('Nova Espécie (Canino/Felino):', bolsa.especie);
+    const novaValidade = prompt('Nova validade (aaaa-mm-dd):', bolsa.validade);
+    const novaUnidade = prompt('Nova Unidade:', bolsa.unidade);
+    if (novaEspecie && novaValidade && novaUnidade) {
+      bolsa.especie = novaEspecie;
+      bolsa.validade = novaValidade;
+      bolsa.unidade = novaUnidade;
+      salvarDados();
+      atualizarFiltros();
+      atualizarListas();
+      mostrarMensagem('Bolsa editada com sucesso!');
+    }
+  });
+
+  div.appendChild(btnUsar);
+  div.appendChild(btnTrocar);
+  div.appendChild(btnEditar);
+
+  return div;
+}
+
+
+
+    btnExportar.addEventListener('click', function() {
+      let csvContent = "data:text/csv;charset=utf-8,";
+      csvContent += "ID,Espécie,Validade,Unidade,Status\n";
+
+      bolsasDeSangue.forEach(b => {
+        csvContent += `${b.id},${b.especie},${b.validade},${b.unidade},${b.status}\n`;
+      });
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", "bolsas_de_sangue.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
+
+    function salvarDados() {
+      localStorage.setItem('bolsasDeSangue', JSON.stringify(bolsasDeSangue));
+    }
+  
+
+    function mostrarMensagem(msg) {
+      mensagem.textContent = msg;
+      mensagem.style.display = 'block';
+      setTimeout(() => mensagem.style.display = 'none', 3000);
+    }
+
+function resetarDados() {
+      const senha = prompt();
+      const senhaCorreta = "0Labwevets."; 
+      if (senha === senhaCorreta) {
+        if (confirm('Tem certeza que deseja apagar todos os dados?')) {
+          localStorage.removeItem('bolsasDeSangue');
+          bolsasDeSangue = [];
+          atualizarListas();
+          mostrarMensagem('Todos os dados foram apagados!');
+        }
+      } else {
+        alert('Senha incorreta! Operação cancelada.');
+      }
+    }
+    atualizarFiltros();
+    atualizarListas();
+  </script>
+
+</body>
+</html>
+ 
